@@ -1,0 +1,30 @@
+
+@keyframes fade {
+    from {
+        opacity: 0%;
+        
+    }
+    to  {
+        opacity: 100%;
+        
+    }
+}
+
+[id^=likebutton] > svg {
+    animation-name: fade;
+    animation-duration: 2s;
+    animation-fill-mode: forwards;
+}
+
+[id^=unlikebutton] > svg {
+    animation-name: fade;
+    animation-duration: 2s;
+    animation-fill-mode: backwards;
+}
+
+[id^=form-] >textarea {
+    border:none;
+    outline: none;
+    font-size: 20px;
+    color: blue;
+}

@@ -1,0 +1,280 @@
+{% extends "network/layout.html" %}
+
+{% block head %}
+<script>
+
+document.addEventListener('DOMContentLoaded', function() {
+
+document.querySelectorAll("[id*='edit']").forEach(editbutton => {
+
+editbutton.style.cursor = "pointer";
+
+editbutton.onclick = function() {
+    let postbody = document.querySelector(`#postbody-${this.dataset.post}`).innerHTML
+    let postelement = document.querySelector(`#postbody-${this.dataset.post}`)
+    let posttextarea = document.querySelector(`#form-${this.dataset.post} #form-post`)
+    let update = document.querySelector(`#form-${this.dataset.post} #id_EntryButton`)
+    let posttextareadiv = document.querySelector(`#postdiv-${this.dataset.post}`)
+
+
+    document.querySelectorAll("[id*='close']").forEach(closebutton => {
+        closebutton.style.cursor = "pointer";
+        closebutton.onclick = function() {
+        posttextareadiv.style.display = 'none';
+        editbutton.style.display = "block";
+        postelement.style.display="block";
+
+        }})
+    
+    posttextarea.innerHTML= `${postbody}`;
+    
+    posttextareadiv.style.display = 'block';
+    posttextarea.focus();
+    posttextarea.setSelectionRange(posttextarea.value.length,posttextarea.value.length);
+
+    editbutton.style.display = "none";
+    postelement.style.display="none";
+
+    posttextarea.onkeyup = () => {
+        console.log(posttextarea.value)
+        if (posttextarea.value.length > 0)
+            update.disabled = false;
+        else
+            update.disabled = true;
+
+
+    }
+
+
+
+
+    update.onclick = () => {
+    console.log( "button pressed")
+
+    fetch(`/updatepost/${this.dataset.post}`, {
+        
+        
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json; charset=UTF-8',
+            'X-CSRFToken': csrftoken
+            },
+        body: JSON.stringify({
+            postbody: posttextarea.value
+          })
+        })
+    
+    .then (response => {
+     //Evaluate whether the response returns error
+            if (response.ok)  {
+              return response.json();
+            } else; {
+              response.json();
+
+              throw new Error ("Error updating post"); 
+            }
+          })
+
+    .then(data => {
+
+        console.log( data.postbody + "<< from server")
+        console.log( data.datetime + "<< from server")
+        document.querySelector(`#postbody-${this.dataset.post}`).innerHTML =`${data.postbody}`
+        document.querySelector(`#postdate-${this.dataset.post}`).innerHTML=`${data.datetime}`
+        
+        posttextareadiv.style.display = 'none';
+        editbutton.style.display = "block";
+        postelement.style.display="block";
+        
+        })
+        return false
+    }
+
+}
+});
+    
+        let followbutton = document.querySelector(`#follow-me`);
+        console.log(window.location.href)
+        if (followbutton !== null) {
+            displayfollow(followbutton);
+
+            let profileuser = document.querySelector(`#profile-name`).innerHTML
+            console.log(profileuser)
+
+            followbutton.onclick = function () {
+                fetch(`/updatefollowers/${profileuser}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        followstatus: "Change",
+                    })
+                    })
+
+                .then (response => {
+                        //Evaluate whether the response returns error
+                    if (response.ok)  {
+                        return response.json();
+                        } else; {
+                        response.json();
+                            throw new Error ("Error loading likes"); 
+                        }
+                    })
+                
+                .then(data => {
+                        console.log(data.followaction + data.followstatus + "<< from server")
+                        followbutton.innerHTML=`${data.followaction}`
+                        document.querySelector(`#followers`).innerHTML = `${data.followers}`;
+                        displayfollow(followbutton)
+
+                    })
+
+                }
+        
+    };
+});
+
+function displayfollow(followbutton) {
+        if (followbutton.innerHTML==="Unfollow"){
+            followbutton.className = "btn btn-secondary"
+        }
+      
+        else {
+            followbutton.className = "btn btn-primary"
+        }
+
+    };
+
+</script>
+
+{% endblock %}
+
+{% block body %}
+    
+
+<div class="card">
+    <div class="card-body">
+      <h1 class="card-title" id="profile-name">{{profile.username}}</h1>
+      <p class="card-text"><strong>Joined:</strong> {{profile.date_joined}}</p>
+      <p><strong>Posts: </strong>{{postcount}}</p>
+      <p class="card-text"><strong>Followers:</strong> <span id="followers">{{followercount}}</span></p>
+      
+    {% if user.is_authenticated %}
+        {% if EligibleToFollow %}
+            <button type="button" id="follow-me" class="btn btn-primary">{{followaction}}</button>
+        {% endif %}
+         {% else %}
+            <button type="button" class="btn btn-primary"><a style="color:white" href="{% url 'login' %}">Log In</a></button>
+    {% endif %}
+
+    </div>
+
+</div>
+
+
+ <!-- Display Posts -->
+ <div class="flex-container">
+    {% for post in posts %}
+    <div class="card" style="margin-top:10px; margin-bottom:10px">
+
+        <div class="card-body">
+
+            {% if post.user.id == user.id %}
+            <p class="card-text" data-post="{{post.id}}" id="edit-{{post.id}}"style="text-align:right;">Edit</p>
+            
+                <div  id="postdiv-{{post.id}}" data-form="{{post.id}}" style="margin-bottom:10px; display:none;">
+                <p class="card-text" id="close-{{post.id}}"style="text-align:right;">Close</p>
+                <form action="{% url 'create_post' %}" id="form-{{post.id}}" method="post">
+                    {% csrf_token %} 
+                    {{PostForm}}
+                    <input type="submit" id="id_EntryButton" class="btn btn-primary" value="Update" style="display:block; clear:both;">
+                </form>
+            </div>
+ 
+
+        {% endif %}
+        <h5 class="card-title" data-postbody="{{post.id}}" id="postbody-{{post.id}}">{{post.post}}</h5>
+        <h6 class="card-subtitle mb-2 text-muted"><a href="{% url 'profile' post.user %}">{{post.user}}</a> on <span id="postdate-{{post.id}}">{{post.datetime}}</span></h6>
+        <p class="card-text">Likes: <span id="likecount-{{post.id}}">{{post.likecount}}<span></p>
+
+        {% if user.is_authenticated %}
+            <button type="button" data-post="{{post.id}}" id="likebutton-{{post.id}}" buttondata-status="{{post.likestatus}}"  class="btn btn-primary">
+
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-heart-fill" viewBox="0 0 16 16" id="heartlike-{{post.id}}" style="display:none">
+                    <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
+                  </svg>
+
+
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-heart" id="heartunlike-{{post.id}}" viewBox="0 0 16 16">
+                    <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z"/>
+                  </svg>
+
+            </button>
+
+
+        {% endif %}
+        </div>
+      </div>
+
+      {% empty %}
+
+      <div class="card-body">
+        <blockquote class="blockquote mb-0">
+          <p>There are no posts. Be the first :)</p>
+         </blockquote>
+      </div>
+
+      {% endfor %}
+      
+    </div>
+
+ <!-- Display Pagination -->
+ <!-- Display pagination if >1 pages-->
+ {% if posts.paginator.num_pages > 1 %}
+
+     <nav aria-label="Posts pagination">
+        <ul class="pagination justify-content-center">
+
+            {% if posts.has_previous %}
+
+                <li class="page-item">
+                    <a class="page-link" href="?page={{posts.previous_page_number}}" tabindex="-1" aria-disabled="true">Previous</a>
+                </li>
+
+            {% else %}
+
+                <li class="page-item disabled">
+                    <a class="page-link" href="" tabindex="-1" aria-disabled="true">Previous</a>
+                </li>
+            
+            {% endif %}
+
+          {% for page in pagination %}
+            {% if posts.number == page %}
+                <li class="page-item active">
+                    <a class="page-link" href="#">{{page}} <span class="sr-only">(current)</span></a>
+                  </li>
+                {% else %}
+                <li class="page-item"><a class="page-link" href="?page={{page}}">{{page}}</a></li>
+            {% endif %}
+          {% endfor %}
+
+          {% if posts.has_next %}
+
+                <li class="page-item">
+                    <a class="page-link" href="?page={{posts.next_page_number}}" tabindex="-1" aria-disabled="true">Next</a>
+                </li>
+
+            {% else %}
+
+                <li class="page-item disabled">
+                    <a class="page-link" href="" tabindex="-1" aria-disabled="true">Next</a>
+                </li>
+                
+            {% endif %}
+
+        </ul>
+      </nav>
+ {% endif %}
+
+
+{% endblock %}
